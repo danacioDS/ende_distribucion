@@ -1,3 +1,6 @@
+# 03_extract__ingresos_columns.py
+"""Extracts specific columns from Excel files in the downloads folder and saves them with a new name."""
+
 import os
 import pandas as pd
 
@@ -27,17 +30,19 @@ def extract_columns_and_save(folder):
                 df = pd.read_excel(filepath)
 
                 # Seleccionar columnas específicas por índice
-                df = df.iloc[:, [0, 1, 6]]
+                df = df.iloc[:, [0, 1, 3, 4, 7]]
 
                 # Renombrar columnas
                 df.columns = [
-                    "AGENTE",
-                    "Energía MWh",
-                    "Potencia kW",
-                ]
+                        "AGENTE",
+                        "Energía MWh",
+                        'Ingresos Energía MWh',
+                        'Ingresos Renovables MWh',
+                        'Ingresos Potencia kW'
+                    ]
 
                 # Guardar archivo con las columnas extraídas
-                output_file = os.path.join(folder, f"extracted_energia_{file}")
+                output_file = os.path.join(folder, f"extracted_ingresos_{file}")
                 df.to_excel(output_file, index=False)
                 print(f"✅ Archivo {file} procesado y guardado como {output_file}.")
             except Exception as e:
