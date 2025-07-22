@@ -15,7 +15,8 @@ def extract_columns_and_save(folder):
     """
     
     excluded_files = ["serie_energia_cronologica.xlsx", "serie_temporal_larga.xlsx", "ingresos_empresas_*.xlsx", 
-                      "serie_ingresos_cronologica.xlsx", "serie_temporal_ingresos.xlsx", "energia_empresas_*.xlsx",
+                      "serie_ingresos_cronologica.xlsx", "serie_temporal_ingresos.xlsx", "ingresos_empresas_*.xlsx",
+                      "precios_empresas_*.xlsx", "energia_empresas_*.xlsx",
                       "serie_temporal_precios.xlsx", "serie_precios_cronologica.xlsx"]
 
     for file in os.listdir(folder):
