@@ -1,6 +1,3 @@
-# 03_extract__ingresos_columns.py
-"""Extracts specific columns from Excel files in the downloads folder and saves them with a new name."""
-
 import os
 import pandas as pd
 
@@ -16,6 +13,7 @@ def extract_columns_and_save(folder):
     Extrae las columnas CENTRAL, Peaje filiales ENDE US$/MWh y PROMEDIO US$/MWh
     de cada archivo .xlsx (excluyendo archivos ya extraídos y específicos).
     """
+    
     excluded_files = ["serie_energia_cronologica.xlsx", "serie_temporal_larga.xlsx", "ingresos_empresas_*.xlsx", 
                       "serie_ingresos_cronologica.xlsx", "serie_temporal_ingresos.xlsx", "energia_empresas_*.xlsx",
                       "serie_temporal_precios.xlsx", "serie_precios_cronologica.xlsx"]
@@ -31,19 +29,17 @@ def extract_columns_and_save(folder):
                 df = pd.read_excel(filepath)
 
                 # Seleccionar columnas específicas por índice
-                df = df.iloc[:, [0, 1, 3, 4, 7]]
+                df = df.iloc[:, [0, 2, 5]]
 
                 # Renombrar columnas
                 df.columns = [
-                        "AGENTE",
-                        "Energía MWh",
-                        'Ingresos Energía MWh',
-                        'Ingresos Renovables MWh',
-                        'Ingresos Potencia kW'
-                    ]
+                    "AGENTE",
+                    "Precio Energía USD/MWh",
+                    "Precio Potencia USD/kW",
+                ]
 
                 # Guardar archivo con las columnas extraídas
-                output_file = os.path.join(folder, f"extracted_ingresos_{file}")
+                output_file = os.path.join(folder, f"extracted_precios_{file}")
                 df.to_excel(output_file, index=False)
                 print(f"✅ Archivo {file} procesado y guardado como {output_file}.")
             except Exception as e:
