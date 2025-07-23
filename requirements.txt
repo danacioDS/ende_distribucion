@@ -1,5 +1,5 @@
 # Librerias necesarias para el proyecto
-python==3.11
+python==3.13.5
 
 
 # Librerías necesarias para el proyecto
@@ -12,5 +12,4 @@ numpy==1.26.4
 matplotlib==3.8.4
 streamlit==1.35.0
 jupyter==1.0.0
-
 
