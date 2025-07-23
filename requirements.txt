@@ -1,7 +1,3 @@
-# Librerias necesarias para el proyecto
-python==3.13.5
-
-
 # Librerías necesarias para el proyecto
 requests==2.31.0
 zipfile36==0.1.3
