@@ -40,6 +40,16 @@ Contributions to the Ende Distri project are welcome. Please feel free to submit
 
 ### Como Construir y correr el contenedor ###
 
+## Crear entorno virtual 
+python -m venv .venv
+
+## Activar entorno virtual 
+.venv\Scripts\activate
+
+## Stat Docker 
+docker start c186ad15447b
+docker exec -it c186ad15447b bash
+
 # Desde la misma carpeta del Dockerfile
 docker build -t ende_distri .
 
