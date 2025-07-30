@@ -14,6 +14,7 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 # Función para generar URLs de descarga
 def generate_urls(start_date, end_date):
     """Genera una lista de URLs en función del rango de fechas especificado."""
+
     base_url_zip = "https://www.cndc.bo/media/archivos/estadistica_mensual/c_ret_"
     base_url_xlsx = "https://www.cndc.bo/media/archivos/estadistica_mensual/c_ret_"
     urls = []

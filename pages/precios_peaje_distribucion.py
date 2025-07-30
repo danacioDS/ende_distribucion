@@ -6,92 +6,68 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuración de la página
-st.set_page_config(page_title="Dashboard de Precios de Energía", layout="wide")
-st.title("Análisis Integral de Precios de Energía")
+st.set_page_config(page_title="Dashboard de Peaje de Generacion", layout="wide")
+st.title("Análisis Integral de Peajes de Generación")
 
 @st.cache_data
 def load_and_transform_data():
     try:
         current_dir = Path(__file__).parent if "__file__" in locals() else Path.cwd()
-        file_path = current_dir / "data" / "serie_precios_sin_outliers.xlsx"
+        file_path = current_dir / "data" / "serie_peaje.xlsx"
 
         if not file_path.exists():
             st.error("Archivo no encontrado")
             return None
 
-        # Cargar datos
         df = pd.read_excel(file_path, engine="openpyxl")
         if df.empty:
             st.error("El archivo está vacío")
             return None
 
-        # Estandarizar nombres de columnas
         df.columns = df.columns.str.strip()
-        
-        # Mostrar columnas reales para diagnóstico
-        st.sidebar.write("Columnas en el archivo:", df.columns.tolist())
-        
-        # Verificar columnas requeridas con flexibilidad
-        required_mappings = {
-            'agente': ['AGENTE', 'AGENT'],
-            'empresa': ['EMPRESA', 'COMPANY'],
-            'mes': ['MES', 'MONTH', 'PERIODO'],
-            'precio': ['PRECIO_MONOMICO', 'PRECIO', 'PRICE']
-        }
-        
-        # Buscar coincidencias para cada campo requerido
-        found_columns = {}
-        for key, options in required_mappings.items():
-            for option in options:
-                if option in df.columns:
-                    found_columns[key] = option
-                    break
-        
-        # Verificar si se encontraron todas las columnas requeridas
-        if len(found_columns) != 4:
-            missing = [k for k in required_mappings if k not in found_columns]
-            st.error(f"Columnas requeridas faltantes: {missing}")
-            return None
+        price_columns = [col for col in df.columns if "Peaje generación USD/MWh" in col]
 
-        # Renombrar columnas a nombres estandarizados
-        df = df.rename(columns={
-            found_columns['agente']: 'AGENTE',
-            found_columns['empresa']: 'EMPRESA',
-            found_columns['mes']: 'MES',
-            found_columns['precio']: 'PRECIO_MONOMICO'
-        })
-        
-        # Convertir MES a formato de fecha
-        df['FECHA'] = pd.to_datetime(
-            df['MES'].astype(str).str.strip(),
-            format='%m%Y',
-            errors='coerce'
-        )
-        
-        # Manejar formato alternativo (ej: "012023" -> enero 2023)
-        if df['FECHA'].isnull().any():
-            df.loc[df['FECHA'].isnull(), 'FECHA'] = pd.to_datetime(
-                df.loc[df['FECHA'].isnull(), 'MES'].astype(str).str.strip(),
-                format='%d%m%Y',
+        dfs = []
+        for col in price_columns:
+            # Extraer el código de fecha (última palabra en el nombre de la columna)
+            period_code = col.split()[-1].strip()
+            
+            # Convertir código MES/AÑO a fecha
+            try:
+                # Mes es siempre los primeros dígitos (1-2 caracteres)
+                # Año es el resto (4 caracteres para años completos)
+                if len(period_code) == 5:  # Ej: "10224" sería octubre 2024? -> pero debería ser 102024
+                    # Asumir formato MYYYY (M=1 dígito, YYYY=4 dígitos)
+                    month = int(period_code[0])
+                    year = int(period_code[1:5])
+                elif len(period_code) == 6:  # Formato correcto MMYYYY
+                    month = int(period_code[0:2])
+                    year = int(period_code[2:6])
+                else:
+                    continue  # Saltar formatos desconocidos
+                
+                date = datetime(year, month, 1)
+            except Exception as e:
+                st.warning(f"Error convirtiendo periodo {period_code}: {str(e)}")
+                continue
+
+            temp_df = df[['AGENTE', 'EMPRESA', col]].copy()
+            temp_df['FECHA'] = date
+            temp_df['Peaje generación USD/MWh'] = pd.to_numeric(
+                temp_df[col].astype(str).str.replace(',', ''), 
                 errors='coerce'
             )
-        
-        # Normalizar fechas al primer día del mes
-        df['FECHA'] = df['FECHA'].dt.to_period('M').dt.to_timestamp()
-        
-        # Convertir precio a numérico
-        df['Precio Monómico USD/MWh'] = pd.to_numeric(
-            df['PRECIO_MONOMICO'].astype(str).str.replace(',', ''), 
-            errors='coerce'
-        )
-        
-        # Crear columna de periodo (formato MES/AAAA)
-        df['Periodo'] = df['FECHA'].dt.strftime('%m/%Y')
-        
-        # Eliminar filas con valores faltantes
-        df = df.dropna(subset=['FECHA', 'Precio Monómico USD/MWh'])
-        
-        return df[['AGENTE', 'EMPRESA', 'FECHA', 'Precio Monómico USD/MWh', 'Periodo']]
+            temp_df['Periodo'] = period_code
+            dfs.append(temp_df)
+
+        if not dfs:
+            st.error("No se pudieron procesar columnas de precios")
+            return None
+            
+        transformed_df = pd.concat(dfs)
+        transformed_df = transformed_df.dropna(subset=['FECHA', 'Peaje generación USD/MWh'])
+
+        return transformed_df
 
     except Exception as e:
         st.error(f"Error al cargar datos: {str(e)}")
@@ -153,18 +129,18 @@ with tab1:
     with col_left:
         st.subheader(f"Evolución de Precios para Agente: {selected_agente}")
         df_agente = df_filtered[df_filtered['AGENTE'] == selected_agente]
-        precio_promedio_agente = df_agente['Precio Monómico USD/MWh'].mean()
+        precio_promedio_agente = df_agente['Peaje generación USD/MWh'].mean()
 
         fig_agente = px.line(
             df_agente,
             x='FECHA',
-            y='Precio Monómico USD/MWh',
+            y='Peaje generación USD/MWh',
             title=f"Precios para {selected_agente}",
             markers=True,
             line_shape='linear'
         )
         fig_agente.update_traces(line=dict(width=3), marker=dict(size=8))
-        fig_agente.update_layout(yaxis_title="Precio Monómico USD/MWh", xaxis_title="Fecha", showlegend=False)
+        fig_agente.update_layout(yaxis_title="Peaje generación USD/MWh", xaxis_title="Fecha", showlegend=False)
         st.plotly_chart(fig_agente, use_container_width=True)
 
         st.metric(label=f"Precio Promedio {selected_agente}", value=f"{precio_promedio_agente:.2f} US$/MWh")
@@ -172,19 +148,19 @@ with tab1:
     with col_right:
         st.subheader(f"Precio Promedio para Empresa: {selected_empresa}")
         df_empresa = df_filtered[df_filtered['EMPRESA'] == selected_empresa]
-        df_empresa_prom = df_empresa.groupby(['FECHA', 'EMPRESA'])['Precio Monómico USD/MWh'].mean().reset_index()
-        precio_promedio_empresa = df_empresa['Precio Monómico USD/MWh'].mean()
+        df_empresa_prom = df_empresa.groupby(['FECHA', 'EMPRESA'])['Peaje generación USD/MWh'].mean().reset_index()
+        precio_promedio_empresa = df_empresa['Peaje generación USD/MWh'].mean()
 
         fig_empresa = px.line(
             df_empresa_prom,
             x='FECHA',
-            y='Precio Monómico USD/MWh',
+            y='Peaje generación USD/MWh',
             title=f"Precio Promedio para {selected_empresa}",
             markers=True,
             line_shape='spline'
         )
         fig_empresa.update_traces(line=dict(width=3, dash='dot'), marker=dict(size=8, symbol='diamond'))
-        fig_empresa.update_layout(yaxis_title="Precio Monómico Promedio (USD/MWh)", xaxis_title="Fecha", showlegend=False)
+        fig_empresa.update_layout(yaxis_title="Peaje generación USD/MWh", xaxis_title="Fecha", showlegend=False)
         st.plotly_chart(fig_empresa, use_container_width=True)
 
         cols_empresa = st.columns(2)
@@ -193,25 +169,24 @@ with tab1:
 
     # Evolución del Precio Promedio del Sistema
     st.subheader("Evolución del Precio Promedio del Sistema")
-    df_sistema = df_filtered.groupby('FECHA')['Precio Monómico USD/MWh'].mean().reset_index()
-    df_sistema['Precio Monómico USD/MWh'] = df_sistema['Precio Monómico USD/MWh'].round(2)
-    precio_promedio_sistema = df_sistema['Precio Monómico USD/MWh'].mean()
+    df_sistema = df_filtered.groupby('FECHA')['Peaje generación USD/MWh'].mean().reset_index()
+    df_sistema['Peaje generación USD/MWh'] = df_sistema['Peaje generación USD/MWh'].round(2)
+    precio_promedio_sistema = df_sistema['Peaje generación USD/MWh'].mean()
 
     fig_sistema = px.bar(
         df_sistema,
         x='FECHA',
-        y='Precio Monómico USD/MWh',
+        y='Peaje generación USD/MWh',
         title="Evolución del Precio Promedio del Sistema",
         text_auto=True,
-        color='Precio Monómico USD/MWh',
-        color_continuous_scale=px.colors.sequential.Blugrn,
+        color_discrete_sequence=["#b4291f"],
     )
     
     fig_sistema.update_traces(
         textposition='inside',
         textfont=dict(size=18, color='white'))
-    
-    fig_sistema.update_layout(yaxis_title="Precio Monómico Promedio (USD/MWh)", xaxis_title="Fecha", showlegend=False, bargap=0.2)
+
+    fig_sistema.update_layout(yaxis_title="Peaje generación Promedio (USD/MWh)", xaxis_title="Fecha", showlegend=False, bargap=0.2)
     st.plotly_chart(fig_sistema, use_container_width=True)
 
     st.metric(label="Precio Promedio del Sistema", value=f"{precio_promedio_sistema:.2f} USD/MWh")
@@ -220,31 +195,31 @@ with tab2:
     st.header("Análisis Comparativo")
     st.subheader("Comparación de Empresas")
 
-    df_empresas_prom_tab2 = df_filtered.groupby(['FECHA', 'EMPRESA'])['Precio Monómico USD/MWh'].mean().reset_index()
+    df_empresas_prom_tab2 = df_filtered.groupby(['FECHA', 'EMPRESA'])['Peaje generación USD/MWh'].mean().reset_index()
     fig_comparacion = px.line(
         df_empresas_prom_tab2,
         x='FECHA',
-        y='Precio Monómico USD/MWh',
+        y='Peaje generación USD/MWh',
         color='EMPRESA',
         line_dash='EMPRESA',
         symbol='EMPRESA',
         title="Comparación de Precios Promedio por Empresa"
     )
     fig_comparacion.update_layout(
-        yaxis_title="Precio Monómico Promedio (USD/MWh)",
+        yaxis_title="Peaje generación Promedio (USD/MWh)",
         xaxis_title="Fecha",
-        legend_title="Empresas"
+        legend_title="Tecnologias",
     )
     st.plotly_chart(fig_comparacion, use_container_width=True)
 
     st.subheader("Métricas Clave")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.metric("Precio Mínimo Sistema", f"{df_filtered['Precio Monómico USD/MWh'].min():.2f} USD/MWh")
+        st.metric("Precio Mínimo Sistema", f"{df_filtered['Peaje generación USD/MWh'].min():.2f} USD/MWh")
     with col2:
-        st.metric("Precio Promedio Sistema", f"{df_filtered['Precio Monómico USD/MWh'].mean():.2f} USD/MWh")
+        st.metric("Precio Promedio Sistema", f"{df_filtered['Peaje generación USD/MWh'].mean():.2f} USD/MWh")
     with col3:
-        st.metric("Precio Máximo Sistema", f"{df_filtered['Precio Monómico USD/MWh'].max():.2f} USD/MWh")
+        st.metric("Precio Máximo Sistema", f"{df_filtered['Peaje generación USD/MWh'].max():.2f} USD/MWh")
 
 # Sidebar: información del sistema
 st.sidebar.markdown("---")

@@ -6,14 +6,14 @@ from datetime import datetime
 from pathlib import Path
 
 # Configuración de la página
-st.set_page_config(page_title="Dashboard de Precios de Energía", layout="wide")
-st.title("Análisis Integral de Precios de Energía")
+st.set_page_config(page_title="Dashboard de Precios Monómicos de Energía", layout="wide")
+st.title("Análisis Integral de Precios Monómicos de Energía")
 
 @st.cache_data
 def load_and_transform_data():
     try:
         current_dir = Path(__file__).parent if "__file__" in locals() else Path.cwd()
-        file_path = current_dir / "data" / "serie_ingresos.xlsx"
+        file_path = current_dir / "data" / "precios_monomico.xlsx"
 
         if not file_path.exists():
             st.error("Archivo no encontrado")
@@ -178,7 +178,8 @@ with tab1:
         x='FECHA',
         y='Precio Monómico USD/MWh',
         title="Evolución del Precio Promedio del Sistema",
-        text_auto=True
+        text_auto=True,
+        color_discrete_sequence=['#1f77b4'],
     )
     
     fig_sistema.update_traces(
@@ -207,7 +208,7 @@ with tab2:
     fig_comparacion.update_layout(
         yaxis_title="Precio Monómico Promedio (USD/MWh)",
         xaxis_title="Fecha",
-        legend_title="Empresas"
+        legend_title="Tecnologias",
     )
     st.plotly_chart(fig_comparacion, use_container_width=True)
 
