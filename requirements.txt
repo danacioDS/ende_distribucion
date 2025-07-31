@@ -9,3 +9,9 @@ matplotlib==3.8.4
 streamlit==1.35.0
 jupyter==1.0.0
 
+streamlit
+pandas
+plotly
+requests
+
+
